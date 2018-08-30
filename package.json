@@ -1,0 +1,29 @@
+{
+  "name": "jsonschema-form",
+  "version": "0.0.1",
+  "description": "jsonschema-form",
+  "author": "GaoQi <taki.gaoqi@outlook.com>",
+  "license": "MIT",
+  "scripts": {
+    "start": "parcel index.html"
+  },
+  "dependencies": {
+    "antd": "^3.8.4",
+    "classnames": "^2.2.6",
+    "lodash": "^4.17.10",
+    "prop-types": "^15.6.2",
+    "react": "^16.4.2",
+    "react-dom": "^16.4.2"
+  },
+  "devDependencies": {
+    "babel-plugin-import": "^1.8.0",
+    "babel-plugin-lodash": "^3.3.4",
+    "babel-plugin-transform-class-properties": "^6.24.1",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-react": "^6.24.1",
+    "babel-preset-stage-0": "^6.24.1",
+    "less": "2.7.3",
+    "parcel-bundler": "^1.9.7",
+    "react-hot-loader": "^4.3.5"
+  }
+}

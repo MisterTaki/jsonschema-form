@@ -1,12 +1,23 @@
 import React, { PureComponent, Fragment } from 'react';
 import PropTypes from 'prop-types';
 import classNames from 'classnames';
-import { Form, Button } from 'antd';
 import _ from 'lodash';
+import {
+  Form,
+  Input,
+  Button,
+} from 'antd';
+
+import { Select } from './components';
 
 const prefixCls = 'jsonSchema-form';
 
 const { Item: FormItem } = Form;
+
+const CMT_MAP = {
+  input: Input,
+  select: Select,
+};
 
 @Form.create()
 export default class JsonSchemaForm extends PureComponent {
@@ -16,6 +27,20 @@ export default class JsonSchemaForm extends PureComponent {
     wrapperClassName: PropTypes.string,
     layout: PropTypes.oneOf(['horizontal', 'vertical', 'inline']),
     hideRequiredMark: PropTypes.bool,
+    providers: PropTypes.objectOf(PropTypes.oneOfType([PropTypes.array, PropTypes.object])),
+    fields: PropTypes.arrayOf(PropTypes.shape({
+      formItemProps: PropTypes.object,
+      componentProps: PropTypes.object,
+      key: PropTypes.string,
+      label: PropTypes.string,
+      type: PropTypes.string,
+      provider: PropTypes.string,
+      fieldDecorator: PropTypes.object,
+    })),
+    fieldsCommon: PropTypes.shape({
+      formItemProps: PropTypes.object,
+      componentProps: PropTypes.object,
+    }),
     submitLoading: PropTypes.bool,
     submitLabel: PropTypes.string,
     onSubmit: PropTypes.func,
@@ -27,10 +52,12 @@ export default class JsonSchemaForm extends PureComponent {
     wrapperClassName: '',
     layout: 'horizontal',
     hideRequiredMark: false,
+    providers: {},
+    fields: [],
+    fieldsCommon: {},
     submitLoading: false,
     submitLabel: 'submit',
     onSubmit: (e, { validateFieldsAndScroll }) => {
-      alert('sss');
       e.preventDefault();
       validateFieldsAndScroll((err, values) => {
         if (!err) {
@@ -46,6 +73,75 @@ export default class JsonSchemaForm extends PureComponent {
     const { propForm, form } = props;
 
     propForm(form);
+
+    this.state = {
+
+    };
+  }
+
+  getCmpExtraProps = (type, provider) => {
+    switch (type) {
+      case 'select': {
+        const { providers } = this.props;
+        const targetProvider = providers[provider];
+        if (targetProvider) {
+          return {
+            _options: targetProvider,
+          };
+        }
+        return {};
+      }
+      default:
+        return {};
+    }
+  }
+
+  renderFormItems = () => {
+    const { fields, fieldsCommon, form: { getFieldDecorator } } = this.props;
+
+    return fields.map((item) => {
+      const {
+        formItemProps = {},
+        componentProps = {},
+        key,
+        label,
+        type,
+        provider,
+        fieldDecorator = {},
+      } = item;
+
+      const TargetComponent = CMT_MAP[type];
+
+      if (!TargetComponent) {
+        console.warn(`JsonSchemaForm doesn't support type:'${type}' component.`);
+        return null;
+      }
+
+      const { formItemProps: commonFormItemProps = {} } = fieldsCommon;
+
+      const finalFormItemProps = {
+        ...commonFormItemProps,
+        ...formItemProps,
+      };
+
+      const componentExtraProps = this.getCmpExtraProps(type, provider);
+
+      return (
+        <FormItem
+          key={key}
+          label={label}
+          className={`${prefixCls}-item`}
+          {...finalFormItemProps}
+        >
+          {getFieldDecorator(key, fieldDecorator)(
+            <TargetComponent
+              {...componentProps}
+              {...componentExtraProps}
+            />
+          )}
+        </FormItem>
+      )
+    });
   }
 
   render() {
@@ -71,9 +167,9 @@ export default class JsonSchemaForm extends PureComponent {
           onSubmit={(e) => onSubmit(e, form)}
         >
           <div className={`${prefixCls}-fields-wrapper`}>
-            fields
+            {this.renderFormItems()}
           </div>
-          <div className={`${prefixCls}-submit-btn-wrapper`}>
+          <FormItem>
             <Button
               className={`${prefixCls}-submit-btn`}
               type="primary"
@@ -81,9 +177,9 @@ export default class JsonSchemaForm extends PureComponent {
             >
               {submitLabel}
             </Button>
-          </div>
+          </FormItem>
         </Form>
       </div>
-    )
+    );
   }
 };

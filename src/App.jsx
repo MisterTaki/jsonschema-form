@@ -5,10 +5,69 @@ import zhCN from 'antd/lib/locale-provider/zh_CN';
 
 import JsonSchemaForm from './JsonSchemaForm';
 
+const jsonSchema = {
+  providers: {
+    template: [
+      {
+        label: 'webview',
+        value: 'webview',
+      },
+      {
+        label: 'posterImage',
+        value: 'posterImage',
+      },
+    ],
+    fields: {
+      webview: [
+        {
+          label: 'webview_select',
+          key: 'webview_select',
+          type: 'select',
+        },
+      ],
+      posterImage: [
+        {
+          label: 'posterImage_media',
+          key: 'posterImage_media',
+          type: 'media',
+          fieldProps: {
+            type: 'image',
+            width: 100,
+            height: 100,
+            size: 100,
+          },
+        },
+      ],
+    },
+  },
+  fields: [
+    {
+      label: 'input',
+      key: 'input',
+      type: 'input',
+    },
+    {
+      label: 'template',
+      key: 'template',
+      type: 'select',
+      provider: 'template'
+    },
+    // {
+    //   label: 'linkage',
+    //   key: false,
+    //   type: 'fields',
+    //   linkage: 'template',
+    //   provider: 'fields',
+    //   dynamic: true,
+    // },
+  ]
+}
+
 const App = () => (
   <LocaleProvider locale={zhCN}>
     <JsonSchemaForm
       className="JsonSchemaForm"
+      {...jsonSchema}
     />
   </LocaleProvider>
 );

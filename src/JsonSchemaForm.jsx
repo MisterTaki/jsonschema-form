@@ -8,18 +8,40 @@ import {
   Button,
 } from 'antd';
 
-import { Select } from './components';
-
-const prefixCls = 'jsonSchema-form';
+import * as Components from './components';
 
 const { Item: FormItem } = Form;
 
-const CMT_MAP = {
-  input: Input,
-  select: Select,
+const CONSTANT = {
+  form: undefined,
+  prefixCls: 'jsonSchema-form',
+  keyType: {},
+  linkages: {},
+  components: {
+    input: Input,
+  },
 };
 
-@Form.create()
+Object.keys(Components).forEach((key) => {
+  CONSTANT['components'][key.toLocaleLowerCase()] = Components[key];
+})
+
+@Form.create({
+  onValuesChange(props, changedValues, allValues) {
+    const { form: { setFieldsValue }, keyType, linkages } = CONSTANT;
+    Object.keys(changedValues).forEach((key) => {
+      const linkageKeyMap = linkages[key];
+      if (linkageKeyMap) {
+        Object.keys(linkageKeyMap).forEach((item) => {
+          const linkageType = keyType[item];
+          if (linkageType === 'select') {
+            setFieldsValue({ [item]: undefined });
+          }
+        })
+      }
+    })
+  },
+})
 export default class JsonSchemaForm extends PureComponent {
   static propTypes = {
     propForm: PropTypes.func,
@@ -31,7 +53,7 @@ export default class JsonSchemaForm extends PureComponent {
     fields: PropTypes.arrayOf(PropTypes.shape({
       formItemProps: PropTypes.object,
       componentProps: PropTypes.object,
-      key: PropTypes.string,
+      key: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]),
       label: PropTypes.string,
       type: PropTypes.string,
       provider: PropTypes.string,
@@ -72,6 +94,7 @@ export default class JsonSchemaForm extends PureComponent {
 
     const { propForm, form } = props;
 
+    CONSTANT.form = form;
     propForm(form);
 
     this.state = {
@@ -79,25 +102,28 @@ export default class JsonSchemaForm extends PureComponent {
     };
   }
 
-  getCmpExtraProps = (type, provider) => {
+  getCmpExtraProps = (type, provider, linkageValue) => {
     switch (type) {
       case 'select': {
         const { providers } = this.props;
-        const targetProvider = providers[provider];
-        if (targetProvider) {
-          return {
-            _options: targetProvider,
-          };
+        let targetProvider;
+        if (linkageValue) {
+          const targetProviderMap = providers[provider] || {};
+          targetProvider = targetProviderMap[linkageValue];
+        } else {
+          targetProvider = providers[provider];
         }
-        return {};
+        return {
+          _options: targetProvider || [],
+        };
       }
       default:
         return {};
     }
   }
 
-  renderFormItems = () => {
-    const { fields, fieldsCommon, form: { getFieldDecorator } } = this.props;
+  renderFormItems = (fields = []) => {
+    const { fieldsCommon, form: { getFieldDecorator } } = this.props;
 
     return fields.map((item) => {
       const {
@@ -106,11 +132,38 @@ export default class JsonSchemaForm extends PureComponent {
         key,
         label,
         type,
+        linkage,
         provider,
         fieldDecorator = {},
       } = item;
 
-      const TargetComponent = CMT_MAP[type];
+      let linkageValue;
+
+      const { keyType, linkages, components } = CONSTANT;
+
+      keyType[key] = type;
+
+      // cascade
+      if (linkage) {
+        if (!linkages[linkage]) {
+          linkages[linkage] = {};
+        }
+        if (key) {
+          linkages[linkage][key] = true;
+        }
+        const { form: { getFieldValue } } = this.props;
+        linkageValue = getFieldValue(linkage);
+        if (linkageValue === undefined) {
+          return null;
+        }
+        const { providers } = this.props;
+        const targetProvider = providers[provider] || {};
+        if (type === 'fields') {
+          return this.renderFormItems(targetProvider[linkageValue]);
+        }
+      }
+
+      const TargetComponent = components[type];
 
       if (!TargetComponent) {
         console.warn(`JsonSchemaForm doesn't support type:'${type}' component.`);
@@ -124,13 +177,13 @@ export default class JsonSchemaForm extends PureComponent {
         ...formItemProps,
       };
 
-      const componentExtraProps = this.getCmpExtraProps(type, provider);
+      const componentExtraProps = this.getCmpExtraProps(type, provider, linkageValue);
 
       return (
         <FormItem
           key={key}
           label={label}
-          className={`${prefixCls}-item`}
+          className={`${CONSTANT.prefixCls}-item`}
           {...finalFormItemProps}
         >
           {getFieldDecorator(key, fieldDecorator)(
@@ -153,7 +206,10 @@ export default class JsonSchemaForm extends PureComponent {
       className,
       submitLabel,
       onSubmit,
+      fields,
     } = this.props;
+
+    const { prefixCls } = CONSTANT;
 
     const wrapperCls = classNames(wrapperClassName, `${prefixCls}-wrapper`);
     const cls = classNames(className, prefixCls);
@@ -167,7 +223,7 @@ export default class JsonSchemaForm extends PureComponent {
           onSubmit={(e) => onSubmit(e, form)}
         >
           <div className={`${prefixCls}-fields-wrapper`}>
-            {this.renderFormItems()}
+            {this.renderFormItems(fields)}
           </div>
           <FormItem>
             <Button

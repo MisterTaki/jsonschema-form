@@ -17,12 +17,33 @@ const jsonSchema = {
         value: 'posterImage',
       },
     ],
+    webview: [
+      {
+        label: 'webview-1',
+        value: 'webview-1',
+      },
+    ],
+    'linkage-select': {
+      webview: [
+        {
+          label: 'linkage-webview-1',
+          value: 'linkage-webview-1',
+        },
+      ],
+      posterImage: [
+        {
+          label: 'linkage-posterImage-1',
+          value: 'linkage-posterImage-1',
+        },
+      ],
+    },
     fields: {
       webview: [
         {
           label: 'webview_select',
           key: 'webview_select',
           type: 'select',
+          provider: 'webview',
         },
       ],
       posterImage: [
@@ -50,18 +71,28 @@ const jsonSchema = {
       label: 'template',
       key: 'template',
       type: 'select',
-      provider: 'template'
+      provider: 'template',
+      componentProps: {
+        allowClear: true,
+      },
     },
-    // {
-    //   label: 'linkage',
-    //   key: false,
-    //   type: 'fields',
-    //   linkage: 'template',
-    //   provider: 'fields',
-    //   dynamic: true,
-    // },
-  ]
-}
+    {
+      label: 'linkage-select',
+      key: 'linkage-select',
+      type: 'select',
+      linkage: 'template',
+      provider: 'linkage-select'
+    },
+    {
+      label: 'linkage',
+      key: false,
+      type: 'fields',
+      linkage: 'template',
+      provider: 'fields',
+      dynamic: true,
+    },
+  ],
+};
 
 const App = () => (
   <LocaleProvider locale={zhCN}>

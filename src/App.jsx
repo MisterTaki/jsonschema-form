@@ -97,7 +97,7 @@ const jsonSchema = {
 const App = () => (
   <LocaleProvider locale={zhCN}>
     <JsonSchemaForm
-      className="JsonSchemaForm"
+      wrapperClassName="JsonSchemaForm-wrapper"
       {...jsonSchema}
     />
   </LocaleProvider>

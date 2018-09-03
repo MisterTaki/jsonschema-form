@@ -69,7 +69,7 @@ export default class JsonSchemaForm extends PureComponent {
   }
 
   static defaultProps = {
-    propForm: form => console.log(form),
+    propForm: form => console.log('propForm:', form),
     className: '',
     wrapperClassName: '',
     layout: 'horizontal',
@@ -156,11 +156,17 @@ export default class JsonSchemaForm extends PureComponent {
         if (linkageValue === undefined) {
           return null;
         }
-        const { providers } = this.props;
-        const targetProvider = providers[provider] || {};
-        if (type === 'fields') {
+      }
+
+      if (type === 'fields') {
+        const { providers = {} } = this.props;
+        let targetProvider;
+        if (linkageValue) {
+          targetProvider = providers[provider] || {};
           return this.renderFormItems(targetProvider[linkageValue]);
         }
+        targetProvider = providers[provider];
+        return this.renderFormItems(targetProvider);
       }
 
       const TargetComponent = components[type];

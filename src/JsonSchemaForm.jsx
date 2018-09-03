@@ -6,6 +6,7 @@ import {
   Form,
   Input,
   Button,
+  Icon,
 } from 'antd';
 
 import * as Components from './components';
@@ -98,8 +99,82 @@ export default class JsonSchemaForm extends PureComponent {
     propForm(form);
 
     this.state = {
-
+      uuid: {},
+      keys: {},
     };
+  }
+
+  componentWillMount() {
+    this.initData();
+  }
+
+  componentDidMount() {
+
+  }
+
+  initData = (props) => {
+    const { keyType, linkages } = CONSTANT;
+    // init keyType & linkage & state
+    const { fields } = props || this.props;
+    const uuid = {};
+    const keys = {};
+
+    fields.forEach((item) => {
+      const {
+        key,
+        type,
+        linkage,
+        dynamic = false,
+      } = item;
+
+      keyType[key] = type;
+
+      if (linkage) {
+        if (!linkages[linkage]) {
+          linkages[linkage] = {};
+        }
+        linkages[linkage][key] = true;
+      }
+
+      if (dynamic) {
+        uuid[key] = 1;
+        keys[key] = [0];
+      }
+    })
+
+    this.setState({
+      uuid,
+      keys,
+    });
+  }
+
+  handleAdd = (key) => {
+    const { uuid, keys } = this.state;
+    const nextKeys = keys[key].concat(uuid[key]);
+    this.setState({
+      uuid: {
+        ...uuid,
+        [key]: uuid[key] + 1,
+      },
+      keys: {
+        ...keys,
+        [key]: nextKeys,
+      },
+    });
+  }
+
+  handleRemove = (key, k) => {
+    const { keys } = this.state;
+    const { [key]: targetKeys } = keys;
+    if (targetKeys.length === 1) {
+      return false;
+    }
+    return this.setState({
+      keys: {
+        ...keys,
+        [key]: targetKeys.filter(item => item !== k),
+      },
+    });
   }
 
   getCmpExtraProps = (type, provider, linkageValue) => {
@@ -122,7 +197,20 @@ export default class JsonSchemaForm extends PureComponent {
     }
   }
 
-  renderFormItems = (fields = []) => {
+  getDecoratorKey = (parentKeys, key, k) => {
+    if (parentKeys.length > 0) {
+      if (k !== undefined) {
+        return `${parentKeys.join('.')}.${key}.${k}`;
+      }
+      return `${parentKeys.join('.')}.${key}`;
+    }
+    if (k !== undefined) {
+      return `${key}.${k}`;
+    }
+    return key;
+  }
+
+  renderFormItems = (fields = [], parentKeys = []) => {
     const { fieldsCommon, form: { getFieldDecorator } } = this.props;
 
     return fields.map((item) => {
@@ -132,25 +220,18 @@ export default class JsonSchemaForm extends PureComponent {
         key,
         label,
         type,
-        linkage,
         provider,
+        linkage,
+        dynamic,
         fieldDecorator = {},
       } = item;
 
       let linkageValue;
 
-      const { keyType, linkages, components } = CONSTANT;
-
-      keyType[key] = type;
+      const { components, prefixCls } = CONSTANT;
 
       // cascade
       if (linkage) {
-        if (!linkages[linkage]) {
-          linkages[linkage] = {};
-        }
-        if (key) {
-          linkages[linkage][key] = true;
-        }
         const { form: { getFieldValue } } = this.props;
         linkageValue = getFieldValue(linkage);
         if (linkageValue === undefined) {
@@ -163,10 +244,10 @@ export default class JsonSchemaForm extends PureComponent {
         let targetProvider;
         if (linkageValue) {
           targetProvider = providers[provider] || {};
-          return this.renderFormItems(targetProvider[linkageValue]);
+          return this.renderFormItems(targetProvider[linkageValue], parentKeys.concat([key]));
         }
         targetProvider = providers[provider];
-        return this.renderFormItems(targetProvider);
+        return this.renderFormItems(targetProvider, parentKeys.concat([key]));
       }
 
       const TargetComponent = components[type];
@@ -185,14 +266,59 @@ export default class JsonSchemaForm extends PureComponent {
 
       const componentExtraProps = this.getCmpExtraProps(type, provider, linkageValue);
 
+      if (dynamic) {
+        const { keys: { [key]: keys = [] } } = this.state;
+        return (
+          <Fragment key={key}>
+            {keys.map((k, index) => (
+              <FormItem
+                key={`${key}-${k}`}
+                label={index === 0 ? label : ''}
+                className={`${prefixCls}-item`}
+                {...finalFormItemProps}
+              >
+                {getFieldDecorator(this.getDecoratorKey(parentKeys, key, k), fieldDecorator)(
+                  <TargetComponent
+                    {...componentProps}
+                    {...componentExtraProps}
+                  />
+                )}
+                {keys.length > 1 ? (
+                  <Button
+                    style={{ width: '100%' }}
+                    className={`${prefixCls}-minus-btn`}
+                    type="dashed"
+                    onClick={() => this.handleRemove(key, k)}
+                  >
+                    <Icon type="minus" />
+                    Subtract field
+                  </Button>
+                ) : null}
+              </FormItem>
+            ))}
+            <FormItem>
+              <Button
+                style={{ width: '100%' }}
+                className={`${prefixCls}-add-btn`}
+                type="dashed"
+                onClick={() => this.handleAdd(key)}
+              >
+                <Icon type="plus" />
+                Add field
+              </Button>
+            </FormItem>
+          </Fragment>
+        );
+      }
+
       return (
         <FormItem
           key={key}
           label={label}
-          className={`${CONSTANT.prefixCls}-item`}
+          className={`${prefixCls}-item`}
           {...finalFormItemProps}
         >
-          {getFieldDecorator(key, fieldDecorator)(
+          {getFieldDecorator(this.getDecoratorKey(parentKeys, key), fieldDecorator)(
             <TargetComponent
               {...componentProps}
               {...componentExtraProps}

@@ -50,13 +50,7 @@ const jsonSchema = {
         {
           label: 'posterImage_media',
           key: 'posterImage_media',
-          type: 'media',
-          fieldProps: {
-            type: 'image',
-            width: 100,
-            height: 100,
-            size: 100,
-          },
+          type: 'upload',
         },
       ],
     },
@@ -66,6 +60,7 @@ const jsonSchema = {
       label: 'input',
       key: 'input',
       type: 'input',
+      dynamic: true,
     },
     {
       label: 'template',
@@ -85,11 +80,10 @@ const jsonSchema = {
     },
     {
       label: 'linkage',
-      key: false,
+      key: 'fields',
       type: 'fields',
       linkage: 'template',
       provider: 'fields',
-      dynamic: true,
     },
   ],
 };

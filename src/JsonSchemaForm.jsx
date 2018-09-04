@@ -243,7 +243,7 @@ export default class JsonSchemaForm extends PureComponent {
           <FormItem
             key={`${key}-${k}`}
             className={`${prefixCls}-item`}
-            label={isFields ? '' : (index === 0 ? label : '')}
+            label={index === 0 ? label : ''}
             {...finalFormItemProps}
           >
             {renderChildren(k)}
@@ -328,8 +328,8 @@ export default class JsonSchemaForm extends PureComponent {
         return this.renderDynamicItem(
           key,
           keys,
-          label,
-          finalFormItemProps,
+          '',
+          {},
           (k) => this.renderFormItems(targetProvider, [...parentKeys, `${key}[${k}]`]),
           true,
         );

@@ -27,6 +27,17 @@ Object.keys(Components).forEach((key) => {
   CONSTANT['components'][key.toLocaleLowerCase()] = Components[key];
 })
 
+const filterValues = (values) => {
+  Object.keys(values).forEach((key) => {
+    if (_.isArray(values[key])) {
+      values[key] = values[key].filter(item => item !== undefined);
+    }
+    if (typeof values[key] === 'object') {
+      filterValues(values[key]);
+    }
+  })
+}
+
 @Form.create({
   onValuesChange(props, changedValues, allValues) {
     // TODO array & object iterator
@@ -88,7 +99,8 @@ export default class JsonSchemaForm extends PureComponent {
       e.preventDefault();
       validateFieldsAndScroll((err, values) => {
         if (!err) {
-          console.log('Received values of form: ', values);
+          filterValues(values)
+          console.log('Received filterValues of form: ', values);
         }
       });
     },
@@ -424,6 +436,7 @@ export default class JsonSchemaForm extends PureComponent {
           </div>
           <FormItem>
             <Button
+              style={{ width: '100%' }}
               className={`${prefixCls}-submit-btn`}
               type="primary"
               htmlType="submit"

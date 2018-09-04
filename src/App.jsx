@@ -16,7 +16,7 @@ const jsonSchema = {
       },
       {
         label: 'template-fields',
-        key: 'fields',
+        key: 'template-fields',
         type: 'fields',
         linkage: 'template-select',
         provider: 'template-fields',
@@ -58,6 +58,22 @@ const jsonSchema = {
       dynamic: true,
     },
   ],
+  initialValues: {
+    template: [
+      {
+        'template-select': 'webview',
+        'template-fields': {
+          input: 'fields-1',
+        },
+      },
+      {
+        'template-select': 'webview',
+        'template-fields': {
+          input: 'fields-2',
+        },
+      },
+    ],
+  },
 };
 
 const App = () => (

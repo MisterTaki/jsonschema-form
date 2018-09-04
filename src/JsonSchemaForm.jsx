@@ -235,6 +235,55 @@ export default class JsonSchemaForm extends PureComponent {
     return key;
   }
 
+  renderDynamicItem = (key, keys, label, finalFormItemProps, renderChildren, isFields = false) => {
+    const { prefixCls } = CONSTANT;
+    return (
+      <Fragment key={key}>
+        {keys.map((k, index) => (
+          <FormItem
+            key={`${key}-${k}`}
+            className={`${prefixCls}-item`}
+            label={isFields ? '' : (index === 0 ? label : '')}
+            {...finalFormItemProps}
+          >
+            {renderChildren(k)}
+            {keys.length > 1 ? (
+              <Fragment>
+                <Button
+                  style={{ width: '100%' }}
+                  className={`${prefixCls}-minus-btn`}
+                  type="dashed"
+                  onClick={() => this.handleRemove(key, k)}
+                >
+                  <Icon type="minus" />
+                </Button>
+                {/* split line */}
+                {isFields && (
+                  <div
+                    style={{
+                      marginTop: 20,
+                      borderBottom: '1px dashed #d9d9d9',
+                    }}
+                  />
+                )}
+              </Fragment>
+            ) : null}
+          </FormItem>
+        ))}
+        <FormItem>
+          <Button
+            style={{ width: '100%' }}
+            className={`${prefixCls}-add-btn`}
+            type="dashed"
+            onClick={() => this.handleAdd(key)}
+          >
+            <Icon type="plus" />
+          </Button>
+        </FormItem>
+      </Fragment>
+    );
+  }
+
   renderFormItems = (fields = [], parentKeys = []) => {
     const { fieldsCommon, initialValues, form: { getFieldDecorator } } = this.props;
 
@@ -269,51 +318,20 @@ export default class JsonSchemaForm extends PureComponent {
         const targetProvider = linkageValue
           ? providers[provider][linkageValue] || []
           : providers[provider] || [];
+
         if (!dynamic) {
           return this.renderFormItems(targetProvider, [...parentKeys, key]);
         }
+
         const { keys: { [key]: keys = [] } } = this.state;
-        return (
-          <Fragment key={key}>
-            {keys.map((k, index) => (
-              <FormItem
-                key={`${key}-${k}`}
-                className={`${prefixCls}-item`}
-                {...finalFormItemProps}
-              >
-                {this.renderFormItems(targetProvider, [...parentKeys, `${key}[${k}]`])}
-                {keys.length > 1 ? (
-                  <Fragment>
-                    <Button
-                      style={{ width: '100%' }}
-                      className={`${prefixCls}-minus-btn`}
-                      type="dashed"
-                      onClick={() => this.handleRemove(key, k)}
-                    >
-                      <Icon type="minus" />
-                    </Button>
-                    {/* split line */}
-                    <div
-                      style={{
-                        marginTop: 20,
-                        borderBottom: '1px dashed #d9d9d9',
-                      }}
-                    />
-                  </Fragment>
-                ) : null}
-              </FormItem>
-            ))}
-            <FormItem>
-              <Button
-                style={{ width: '100%' }}
-                className={`${prefixCls}-add-btn`}
-                type="dashed"
-                onClick={() => this.handleAdd(key)}
-              >
-                <Icon type="plus" />
-              </Button>
-            </FormItem>
-          </Fragment>
+
+        return this.renderDynamicItem(
+          key,
+          keys,
+          label,
+          finalFormItemProps,
+          (k) => this.renderFormItems(targetProvider, [...parentKeys, `${key}[${k}]`]),
+          true,
         );
       }
 
@@ -335,47 +353,23 @@ export default class JsonSchemaForm extends PureComponent {
 
       if (dynamic) {
         const { keys: { [key]: keys = [] } } = this.state;
-        return (
-          <Fragment key={key}>
-            {keys.map((k, index) => (
-              <FormItem
-                key={`${key}-${k}`}
-                label={index === 0 ? label : ''}
-                className={`${prefixCls}-item`}
-                {...finalFormItemProps}
-              >
-                {getFieldDecorator(this.getDecoratorKey(parentKeys, `${key}[${k}]`), {
-                  initialValue: _.get(initialValues, this.getDecoratorKey(parentKeys, `${key}[${k}]`)),
-                  ...fieldDecorator,
-                })(
-                  <TargetComponent
-                    {...componentProps}
-                    {...componentExtraProps}
-                  />
-                )}
-                {keys.length > 1 ? (
-                  <Button
-                    style={{ width: '100%' }}
-                    className={`${prefixCls}-minus-btn`}
-                    type="dashed"
-                    onClick={() => this.handleRemove(key, k)}
-                  >
-                    <Icon type="minus" />
-                  </Button>
-                ) : null}
-              </FormItem>
-            ))}
-            <FormItem>
-              <Button
-                style={{ width: '100%' }}
-                className={`${prefixCls}-add-btn`}
-                type="dashed"
-                onClick={() => this.handleAdd(key)}
-              >
-                <Icon type="plus" />
-              </Button>
-            </FormItem>
-          </Fragment>
+
+        return this.renderDynamicItem(
+          key,
+          keys,
+          label,
+          finalFormItemProps,
+          (k) => (
+            getFieldDecorator(this.getDecoratorKey(parentKeys, `${key}[${k}]`), {
+              initialValue: _.get(initialValues, this.getDecoratorKey(parentKeys, `${key}[${k}]`)),
+              ...fieldDecorator,
+            })(
+              <TargetComponent
+                {...componentProps}
+                {...componentExtraProps}
+              />
+            )
+          ),
         );
       }
 

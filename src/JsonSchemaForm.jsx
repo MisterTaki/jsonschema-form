@@ -30,6 +30,9 @@ Object.keys(Components).forEach((key) => {
 @Form.create({
   onValuesChange(props, changedValues, allValues) {
     const { form: { setFieldsValue }, keyType, linkages } = CONSTANT;
+    console.log('changedValues', changedValues);
+    console.log('linkages', linkages);
+    console.log('keyType', keyType);
     Object.keys(changedValues).forEach((key) => {
       const linkageKeyMap = linkages[key];
       if (linkageKeyMap) {
@@ -105,19 +108,20 @@ export default class JsonSchemaForm extends PureComponent {
   }
 
   componentWillMount() {
-    this.initData();
+    this.setState({
+      ...this.initState(),
+    });
   }
 
   componentDidMount() {
 
   }
 
-  initData = (props) => {
+  initState = (props) => {
     const { keyType, linkages } = CONSTANT;
-    // init keyType & linkage & state
     const { fields } = props || this.props;
-    const uuid = {};
-    const keys = {};
+    let uuid = {};
+    let keys = {};
 
     fields.forEach((item) => {
       const {
@@ -140,12 +144,31 @@ export default class JsonSchemaForm extends PureComponent {
         uuid[key] = 1;
         keys[key] = [0];
       }
+
+      if (type === 'fields') {
+        const { providers } = props || this.props;
+        let otherFields = providers[key] || [];
+        if (linkage) {
+          otherFields = Object.keys(otherFields).reduce((before, current) => {
+            return before.concat(otherFields[current]);
+          }, []);
+        }
+        const { uuid: otherUuid, keys: otherKeys } = this.initState({ fields: otherFields, providers });
+        uuid = {
+          ...uuid,
+          ...otherUuid,
+        };
+        keys = {
+          ...keys,
+          ...otherKeys,
+        };
+      }
     })
 
-    this.setState({
+    return {
       uuid,
       keys,
-    });
+    };
   }
 
   handleAdd = (key) => {
@@ -197,15 +220,9 @@ export default class JsonSchemaForm extends PureComponent {
     }
   }
 
-  getDecoratorKey = (parentKeys, key, k) => {
+  getDecoratorKey = (parentKeys, key) => {
     if (parentKeys.length > 0) {
-      if (k !== undefined) {
-        return `${parentKeys.join('.')}.${key}.${k}`;
-      }
       return `${parentKeys.join('.')}.${key}`;
-    }
-    if (k !== undefined) {
-      return `${key}.${k}`;
     }
     return key;
   }
@@ -233,7 +250,7 @@ export default class JsonSchemaForm extends PureComponent {
       // cascade
       if (linkage) {
         const { form: { getFieldValue } } = this.props;
-        linkageValue = getFieldValue(linkage);
+        linkageValue = getFieldValue(this.getDecoratorKey(parentKeys, linkage));
         if (linkageValue === undefined) {
           return null;
         }
@@ -241,13 +258,46 @@ export default class JsonSchemaForm extends PureComponent {
 
       if (type === 'fields') {
         const { providers = {} } = this.props;
-        let targetProvider;
-        if (linkageValue) {
-          targetProvider = providers[provider] || {};
-          return this.renderFormItems(targetProvider[linkageValue], parentKeys.concat([key]));
+        const targetProvider = linkageValue
+          ? providers[provider][linkageValue] || []
+          : providers[provider] || [];
+        if (!dynamic) {
+          return this.renderFormItems(targetProvider, parentKeys.concat([key]));
         }
-        targetProvider = providers[provider];
-        return this.renderFormItems(targetProvider, parentKeys.concat([key]));
+        const { keys: { [key]: keys = [] } } = this.state;
+        return (
+          <Fragment key={key}>
+            {keys.map((k, index) => (
+              <FormItem
+                key={`${key}-${k}`}
+                className={`${prefixCls}-item`}
+                {...finalFormItemProps}
+              >
+                {this.renderFormItems(targetProvider, parentKeys.concat([`${key}[${k}]`]))}
+                {keys.length > 1 ? (
+                  <Button
+                    style={{ width: '100%' }}
+                    className={`${prefixCls}-minus-btn`}
+                    type="dashed"
+                    onClick={() => this.handleRemove(key, k)}
+                  >
+                    <Icon type="minus" />
+                  </Button>
+                ) : null}
+              </FormItem>
+            ))}
+            <FormItem>
+              <Button
+                style={{ width: '100%' }}
+                className={`${prefixCls}-add-btn`}
+                type="dashed"
+                onClick={() => this.handleAdd(key)}
+              >
+                <Icon type="plus" />
+              </Button>
+            </FormItem>
+          </Fragment>
+        );
       }
 
       const TargetComponent = components[type];
@@ -277,7 +327,7 @@ export default class JsonSchemaForm extends PureComponent {
                 className={`${prefixCls}-item`}
                 {...finalFormItemProps}
               >
-                {getFieldDecorator(this.getDecoratorKey(parentKeys, key, k), fieldDecorator)(
+                {getFieldDecorator(this.getDecoratorKey(parentKeys, `${key}[${k}]`), fieldDecorator)(
                   <TargetComponent
                     {...componentProps}
                     {...componentExtraProps}
@@ -291,7 +341,6 @@ export default class JsonSchemaForm extends PureComponent {
                     onClick={() => this.handleRemove(key, k)}
                   >
                     <Icon type="minus" />
-                    Subtract field
                   </Button>
                 ) : null}
               </FormItem>
@@ -304,7 +353,6 @@ export default class JsonSchemaForm extends PureComponent {
                 onClick={() => this.handleAdd(key)}
               >
                 <Icon type="plus" />
-                Add field
               </Button>
             </FormItem>
           </Fragment>

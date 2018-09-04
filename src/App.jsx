@@ -9,6 +9,21 @@ const jsonSchema = {
   providers: {
     template: [
       {
+        label: 'template-select',
+        key: 'template-select',
+        type: 'select',
+        provider: 'template-select'
+      },
+      {
+        label: 'template-fields',
+        key: 'fields',
+        type: 'fields',
+        linkage: 'template-select',
+        provider: 'template-fields',
+      },
+    ],
+    'template-select': [
+      {
         label: 'webview',
         value: 'webview',
       },
@@ -17,33 +32,12 @@ const jsonSchema = {
         value: 'posterImage',
       },
     ],
-    webview: [
-      {
-        label: 'webview-1',
-        value: 'webview-1',
-      },
-    ],
-    'linkage-select': {
+    'template-fields': {
       webview: [
         {
-          label: 'linkage-webview-1',
-          value: 'linkage-webview-1',
-        },
-      ],
-      posterImage: [
-        {
-          label: 'linkage-posterImage-1',
-          value: 'linkage-posterImage-1',
-        },
-      ],
-    },
-    fields: {
-      webview: [
-        {
-          label: 'webview_select',
-          key: 'webview_select',
-          type: 'select',
-          provider: 'webview',
+          label: 'input',
+          key: 'input',
+          type: 'input',
         },
       ],
       posterImage: [
@@ -57,33 +51,11 @@ const jsonSchema = {
   },
   fields: [
     {
-      label: 'input',
-      key: 'input',
-      type: 'input',
-      dynamic: true,
-    },
-    {
       label: 'template',
       key: 'template',
-      type: 'select',
-      provider: 'template',
-      componentProps: {
-        allowClear: true,
-      },
-    },
-    {
-      label: 'linkage-select',
-      key: 'linkage-select',
-      type: 'select',
-      linkage: 'template',
-      provider: 'linkage-select'
-    },
-    {
-      label: 'linkage',
-      key: 'fields',
       type: 'fields',
-      linkage: 'template',
-      provider: 'fields',
+      provider: 'template',
+      dynamic: true,
     },
   ],
 };

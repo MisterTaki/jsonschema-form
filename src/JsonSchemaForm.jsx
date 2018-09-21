@@ -13,7 +13,9 @@ import * as Components from './components';
 
 const { Item: FormItem } = Form;
 
-const CONSTANT = {
+const REGEXP = /\[[0-9]+\]/g;
+
+let CONSTANT = {
   form: undefined,
   prefixCls: 'jsonSchema-form',
   keyType: {},
@@ -38,24 +40,44 @@ const filterValues = (values) => {
   })
 }
 
+const getChangedName = (fields) => {
+  const keys = Object.keys(fields);
+  if (keys.length > 1) {
+    return fields.name;
+  }
+  return getChangedName(fields[keys[0]]);
+}
+
 @Form.create({
+  onFieldsChange(props, fields) {
+    console.log('fields', fields);
+    console.log('getChangedName', getChangedName(fields));
+    console.log('getChangedName REGEXP', getChangedName(fields).replace(REGEXP, ''));
+    const { form: { setFieldsValue }, keyType, linkages } = CONSTANT;
+    const changedName = getChangedName(fields).replace(REGEXP, '');
+    if (keyType[changedName] === 'select') {
+
+    }
+  },
   onValuesChange(props, changedValues, allValues) {
     // TODO array & object iterator
-    const { form: { setFieldsValue }, keyType, linkages } = CONSTANT;
-    console.log('changedValues', changedValues);
-    console.log('linkages', linkages);
-    console.log('keyType', keyType);
-    Object.keys(changedValues).forEach((key) => {
-      const linkageKeyMap = linkages[key];
-      if (linkageKeyMap) {
-        Object.keys(linkageKeyMap).forEach((item) => {
-          const linkageType = keyType[item];
-          if (linkageType === 'select') {
-            setFieldsValue({ [item]: undefined });
-          }
-        })
-      }
-    })
+    // console.log('changedValues', changedValues);
+    // console.log('allValues', allValues);
+    // const { form: { setFieldsValue }, keyType, linkages } = CONSTANT;
+    // console.log('changedValues', changedValues);
+    // console.log('linkages', linkages);
+    // console.log('keyType', keyType);
+    // Object.keys(changedValues).forEach((key) => {
+    //   const linkageKeyMap = linkages[key];
+    //   if (linkageKeyMap) {
+    //     Object.keys(linkageKeyMap).forEach((item) => {
+    //       const linkageType = keyType[item];
+    //       if (linkageType === 'select') {
+    //         setFieldsValue({ [item]: undefined });
+    //       }
+    //     })
+    //   }
+    // })
   },
 })
 export default class JsonSchemaForm extends PureComponent {
@@ -145,20 +167,26 @@ export default class JsonSchemaForm extends PureComponent {
         dynamic = false,
       } = item;
 
-      keyType[key] = type;
+      let keyName = key;
+
+      if (parentKeys.length > 0) {
+        keyName = `${parentKeys.join('.')}.${key}`;
+      }
+
+      keyType[keyName] = type;
 
       if (linkage) {
         if (!linkages[linkage]) {
-          linkages[linkage] = {};
+          linkages[linkage] = [];
         }
-        linkages[linkage][key] = true;
+        linkages[linkage].push(keyName);
       }
 
       if (dynamic) {
         const initialValue = _.get(initialValues, [...parentKeys, key], []);
         const initialNum = initialValue.length || 1;
-        uuid[key] = initialNum;
-        keys[key] = Array.from(new Array(initialNum), (val, index) => index);;
+        uuid[keyName] = initialNum;
+        keys[keyName] = Array.from(new Array(initialNum), (val, index) => index);
       }
 
       if (type === 'fields') {
@@ -183,12 +211,52 @@ export default class JsonSchemaForm extends PureComponent {
           ...otherKeys,
         };
       }
-    })
+    });
+
+    const oldLinkages = { ...linkages };
+    CONSTANT.linkages = {};
+    this.initLinkages(oldLinkages);
 
     return {
       uuid,
       keys,
     };
+  }
+
+  initLinkages = (oldLinkages, props = this.props, parentKeys = []) => {
+    const { linkages } = CONSTANT;
+    const { fields, providers } = props;
+
+    fields.forEach((item) => {
+      const { key, type, linkage } = item;
+
+      let keyName = key;
+
+      if (parentKeys.length > 0) {
+        keyName = `${parentKeys.join('.')}.${key}`;
+      }
+
+      const linkagesVal = oldLinkages[key];
+      if (linkagesVal) {
+        linkages[keyName] = linkagesVal;
+      }
+
+      if (type === 'fields') {
+        const { providers } = props;
+        let otherFields = providers[key] || [];
+        if (linkage) {
+          otherFields = Object.keys(otherFields).reduce((before, current) => {
+            return before.concat(otherFields[current]);
+          }, []);
+          console.log('otherFields', otherFields);
+        }
+        this.initLinkages(
+          oldLinkages,
+          { fields: otherFields, providers },
+          [...parentKeys, key]
+        );
+      }
+    });
   }
 
   handleAdd = (key) => {

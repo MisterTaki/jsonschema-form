@@ -12,6 +12,9 @@ const jsonSchema = {
         label: 'template-select',
         key: 'template-select',
         type: 'select',
+        componentProps: {
+          allowClear: true,
+        },
         provider: 'template-select'
       },
       {
@@ -58,22 +61,22 @@ const jsonSchema = {
       dynamic: true,
     },
   ],
-  initialValues: {
-    template: [
-      {
-        'template-select': 'webview',
-        'template-fields': {
-          input: 'fields-1',
-        },
-      },
-      {
-        'template-select': 'webview',
-        'template-fields': {
-          input: 'fields-2',
-        },
-      },
-    ],
-  },
+  // initialValues: {
+  //   template: [
+  //     {
+  //       'template-select': 'webview',
+  //       'template-fields': {
+  //         input: 'fields-1',
+  //       },
+  //     },
+  //     {
+  //       'template-select': 'webview',
+  //       'template-fields': {
+  //         input: 'fields-2',
+  //       },
+  //     },
+  //   ],
+  // },
 };
 
 const App = () => (

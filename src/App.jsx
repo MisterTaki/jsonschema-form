@@ -1,90 +1,92 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import { hot } from 'react-hot-loader'; // eslint-disable-line import/no-extraneous-dependencies
 import { LocaleProvider } from 'antd';
 import zhCN from 'antd/lib/locale-provider/zh_CN';
+import _ from 'lodash';
 
 import JsonSchemaForm from './JsonSchemaForm';
 
-const jsonSchema = {
+const targetJson = {
   providers: {
     template: [
       {
-        label: 'template-select',
-        key: 'template-select',
-        type: 'select',
-        componentProps: {
-          allowClear: true,
-        },
-        provider: 'template-select'
+        label: 'template-1',
+        value: '1',
       },
       {
-        label: 'template-fields',
-        key: 'template-fields',
-        type: 'fields',
-        linkage: 'template-select',
-        provider: 'template-fields',
+        label: 'template-2',
+        value: '2',
+      },
+      {
+        label: 'template-3',
+        value: '3',
       },
     ],
-    'template-select': [
+    content: [
       {
-        label: 'webview',
-        value: 'webview',
+        label: 'content-1',
+        value: '1',
+      }
+    ]
+  },
+  initialValues: {},
+  fields: [
+    {
+      key: 'template-first',
+      provider: 'template',
+      type: 'select',
+    },
+    {
+      key: 'template-second',
+      provider: 'template',
+      type: 'select',
+    },
+    {
+      key: 'content',
+      type: {
+        $$condition: 'content.type',
+        1: 'input',
+        2: 'select',
+        3: 'input',
       },
-      {
-        label: 'posterImage',
-        value: 'posterImage',
+      provider: {
+        $$condition: 'content.type',
+        2: 'content',
       },
-    ],
-    'template-fields': {
-      webview: [
+      multiple: true,
+      display: {
+        $$condition: 'content.display',
+      },
+    }
+  ],
+  conditions: {
+    content: {
+      type: {
+        target: 'template-first',
+      },
+      display: [
         {
-          label: 'input',
-          key: 'input',
-          type: 'input',
+          target: 'template-first',
+          value: '2',
         },
-      ],
-      posterImage: [
+        '||',
         {
-          label: 'posterImage_media',
-          key: 'posterImage_media',
-          type: 'upload',
+          target: 'template-second',
+          value: '2',
         },
       ],
     },
   },
-  fields: [
-    {
-      label: 'template',
-      key: 'template',
-      type: 'fields',
-      provider: 'template',
-      dynamic: true,
-    },
-  ],
-  // initialValues: {
-  //   template: [
-  //     {
-  //       'template-select': 'webview',
-  //       'template-fields': {
-  //         input: 'fields-1',
-  //       },
-  //     },
-  //     {
-  //       'template-select': 'webview',
-  //       'template-fields': {
-  //         input: 'fields-2',
-  //       },
-  //     },
-  //   ],
-  // },
 };
 
 const App = () => (
   <LocaleProvider locale={zhCN}>
-    <JsonSchemaForm
-      wrapperClassName="JsonSchemaForm-wrapper"
-      {...jsonSchema}
-    />
+    <Fragment>
+      <JsonSchemaForm
+        wrapperClassName="JsonSchemaForm-wrapper"
+        {...targetJson}
+      />
+    </Fragment>
   </LocaleProvider>
 );
 

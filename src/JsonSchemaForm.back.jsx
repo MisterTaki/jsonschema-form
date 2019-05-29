@@ -9,16 +9,17 @@ import {
   Icon,
 } from 'antd';
 
-import { parseFieldItem } from './utils';
-import { CONDITION } from './constant/keys';
 import * as Components from './components';
 
 const { Item: FormItem } = Form;
+
+const REGEXP = /\[[0-9]+\]/g;
 
 let CONSTANT = {
   form: undefined,
   prefixCls: 'jsonSchema-form',
   keyType: {},
+  linkages: {},
   components: {
     input: Input,
   },
@@ -39,13 +40,58 @@ const filterValues = (values) => {
   })
 }
 
+const getChangedName = (fields) => {
+  const keys = Object.keys(fields);
+  if (keys.length > 1) {
+    return fields.name;
+  }
+  return getChangedName(fields[keys[0]]);
+}
+
 @Form.create({
   onFieldsChange(props, fields) {
-    // TODO 检测级联变化 重置选择选项
     console.log('fields', fields);
+    // console.log('getChangedName', getChangedName(fields));
+    // const { form: { resetFields }, keyType, linkages } = CONSTANT;
+    // const changedName = getChangedName(fields);
+    // if (changedName !== undefined) {
+    //   console.log('getChangedName REGEXP', changedName.replace(REGEXP, ''));
+    //   const replacedChangedName = changedName.replace(REGEXP, '');
+    //   if (keyType[replacedChangedName] === 'select') {
+    //     const linkageArr = linkages[replacedChangedName];
+    //     if (linkageArr && linkageArr.length > 0) {
+    //       resetFields(linkageArr);
+    //     }
+    //   }
+    // }
   },
 })
 export default class JsonSchemaForm extends PureComponent {
+  static propTypes = {
+    propForm: PropTypes.func,
+    className: PropTypes.string,
+    wrapperClassName: PropTypes.string,
+    layout: PropTypes.oneOf(['horizontal', 'vertical', 'inline']),
+    hideRequiredMark: PropTypes.bool,
+    providers: PropTypes.objectOf(PropTypes.oneOfType([PropTypes.array, PropTypes.object])),
+    fields: PropTypes.arrayOf(PropTypes.shape({
+      formItemProps: PropTypes.object,
+      componentProps: PropTypes.object,
+      key: PropTypes.oneOfType([PropTypes.bool, PropTypes.string]),
+      label: PropTypes.string,
+      type: PropTypes.string,
+      provider: PropTypes.string,
+      fieldDecorator: PropTypes.object,
+    })),
+    fieldsCommon: PropTypes.shape({
+      formItemProps: PropTypes.object,
+      componentProps: PropTypes.object,
+    }),
+    submitLoading: PropTypes.bool,
+    submitLabel: PropTypes.string,
+    onSubmit: PropTypes.func,
+  }
+
   static defaultProps = {
     propForm: form => console.log('propForm:', form),
     className: '',
@@ -93,9 +139,9 @@ export default class JsonSchemaForm extends PureComponent {
 
   }
 
-  initState = (props = this.props, parentKeys = []) => {
-    const { keyType } = CONSTANT;
-    const { fields, initialValues } = props;
+  initState = (props, parentKeys = []) => {
+    const { keyType, linkages } = CONSTANT;
+    const { fields, initialValues } = props || this.props;
     let uuid = {};
     let keys = {};
 
@@ -103,8 +149,8 @@ export default class JsonSchemaForm extends PureComponent {
       const {
         key,
         type,
-        multiple = false,
-        fields: childrenFields = [],
+        linkage,
+        dynamic = false,
       } = item;
 
       let keyName = key;
@@ -115,16 +161,31 @@ export default class JsonSchemaForm extends PureComponent {
 
       keyType[keyName] = type;
 
-      if (multiple) {
-        const initialValue = _.get(initialValues, keyName, []);
+      if (linkage) {
+        if (!linkages[linkage]) {
+          linkages[linkage] = [];
+        }
+        linkages[linkage].push(keyName);
+      }
+
+      if (dynamic) {
+        const initialValue = _.get(initialValues, [...parentKeys, key], []);
         const initialNum = initialValue.length || 1;
         uuid[keyName] = initialNum;
         keys[keyName] = Array.from(new Array(initialNum), (val, index) => index);
       }
 
       if (type === 'fields') {
+        const { providers } = props || this.props;
+        let otherFields = providers[key] || [];
+        if (linkage) {
+          otherFields = Object.keys(otherFields).reduce((before, current) => {
+            return before.concat(otherFields[current]);
+          }, []);
+          console.log('otherFields', otherFields);
+        }
         const { uuid: otherUuid, keys: otherKeys } = this.initState(
-          { fields: childrenFields, initialValues },
+          { fields: otherFields, providers, initialValues },
           [...parentKeys, key]
         );
         uuid = {
@@ -138,10 +199,50 @@ export default class JsonSchemaForm extends PureComponent {
       }
     });
 
+    const oldLinkages = { ...linkages };
+    CONSTANT.linkages = {};
+    this.initLinkages(oldLinkages);
+
     return {
       uuid,
       keys,
     };
+  }
+
+  initLinkages = (oldLinkages, props = this.props, parentKeys = []) => {
+    const { linkages } = CONSTANT;
+    const { fields, providers } = props;
+
+    fields.forEach((item) => {
+      const { key, type, linkage } = item;
+
+      let keyName = key;
+
+      if (parentKeys.length > 0) {
+        keyName = `${parentKeys.join('.')}.${key}`;
+      }
+
+      const linkagesVal = oldLinkages[key];
+      if (linkagesVal) {
+        linkages[keyName] = linkagesVal;
+      }
+
+      if (type === 'fields') {
+        const { providers } = props;
+        let otherFields = providers[key] || [];
+        if (linkage) {
+          otherFields = Object.keys(otherFields).reduce((before, current) => {
+            return before.concat(otherFields[current]);
+          }, []);
+          console.log('otherFields', otherFields);
+        }
+        this.initLinkages(
+          oldLinkages,
+          { fields: otherFields, providers },
+          [...parentKeys, key]
+        );
+      }
+    });
   }
 
   handleAdd = (key) => {
@@ -173,37 +274,17 @@ export default class JsonSchemaForm extends PureComponent {
     });
   }
 
-  handleOnChange = (item) => {
-    const {
-      form: {
-        getFieldDecorator,
-        getFieldsValue,
-        getFieldValue,
-        setFieldsValue,
-        resetFields,
-      },
-      providers = {},
-    } = this.props;
-    const { type } = item;
-
-    switch (type) {
-      case 'select':
-
-        break;
-
-      default:
-        break;
-    }
-
-    console.log('handleOnChange', item);
-  }
-
-  getCmpExtraProps = (type, provider) => {
+  getCmpExtraProps = (type, provider, linkageValue) => {
     switch (type) {
       case 'select': {
         const { providers } = this.props;
         let targetProvider;
-        targetProvider = providers[provider];
+        if (linkageValue) {
+          const targetProviderMap = providers[provider] || {};
+          targetProvider = targetProviderMap[linkageValue];
+        } else {
+          targetProvider = providers[provider];
+        }
         return {
           _options: targetProvider || [],
         };
@@ -220,7 +301,7 @@ export default class JsonSchemaForm extends PureComponent {
     return key;
   }
 
-  renderMultipleItem = (key, keys, label, finalFormItemProps, renderChildren, isFields = false) => {
+  renderDynamicItem = (key, keys, label, finalFormItemProps, renderChildren, isFields = false) => {
     const { prefixCls } = CONSTANT;
     return (
       <Fragment key={key}>
@@ -270,56 +351,56 @@ export default class JsonSchemaForm extends PureComponent {
   }
 
   renderFormItems = (fields = [], parentKeys = []) => {
-    const {
-      form: {
-        getFieldDecorator,
-        getFieldsValue,
-        getFieldValue,
-        setFieldsValue,
-        resetFields,
-      },
-      providers = {},
-      fieldsCommon = {},
-      initialValues = {},
-      conditions = {},
-    } = this.props;
-
-    const formValues = getFieldsValue();
+    const { fieldsCommon, initialValues, form: { getFieldDecorator } } = this.props;
 
     return fields.map((item) => {
       const {
+        formItemProps = {},
+        componentProps = {},
         key,
         label,
         type,
         provider,
-        multiple,
-        display,
-        fields: childrenFields = [],
-        formItemProps = {},
-        componentProps = {},
+        linkage,
+        dynamic,
         fieldDecorator = {},
-      } = parseFieldItem(formValues, item, conditions);
+      } = item;
 
-      if (display === false) {
-        return null;
+      let linkageValue;
+
+      const { components, prefixCls } = CONSTANT;
+
+      // cascade
+      if (linkage) {
+        const { form: { getFieldValue } } = this.props;
+        linkageValue = getFieldValue(this.getDecoratorKey(parentKeys, linkage));
+        if (linkageValue === undefined) {
+          return null;
+        }
       }
 
       if (type === 'fields') {
-        if (multiple) {
-          const { keys: { [key]: keys = [] } } = this.state;
-          return this.renderMultipleItem(
-            key,
-            keys,
-            '',
-            {},
-            (k) => this.renderFormItems(childrenFields, [...parentKeys, `${key}[${k}]`]),
-            true,
-          );
+        const { providers = {} } = this.props;
+        const targetProvider = linkageValue
+          ? providers[provider][linkageValue] || []
+          : providers[provider] || [];
+
+        if (!dynamic) {
+          return this.renderFormItems(targetProvider, [...parentKeys, key]);
         }
-        return this.renderFormItems(childrenFields, [...parentKeys, key]);
+
+        const { keys: { [key]: keys = [] } } = this.state;
+
+        return this.renderDynamicItem(
+          key,
+          keys,
+          '',
+          {},
+          (k) => this.renderFormItems(targetProvider, [...parentKeys, `${key}[${k}]`]),
+          true,
+        );
       }
 
-      const { components, prefixCls } = CONSTANT;
       const TargetComponent = components[type];
 
       if (!TargetComponent) {
@@ -334,58 +415,47 @@ export default class JsonSchemaForm extends PureComponent {
         ...formItemProps,
       };
 
-      const componentExtraProps = this.getCmpExtraProps(type, provider);
+      const componentExtraProps = this.getCmpExtraProps(type, provider, linkageValue);
 
-      const finalComponentProps = {
-        ...componentProps,
-        ...componentExtraProps,
-        onChange: () => {
-          this.handleOnChange(item);
-
-          // 默认
-          const { onChange } = componentProps;
-          if (onChange) {
-            onChange(...arguments);
-          }
-        },
-      };
-
-      if (multiple) {
+      if (dynamic) {
         const { keys: { [key]: keys = [] } } = this.state;
-        const formItem = this.renderMultipleItem(
+
+        const formItem = this.renderDynamicItem(
           key,
           keys,
           label,
           finalFormItemProps,
           (k) => {
-            const targetMultipleKey = this.getDecoratorKey(parentKeys, `${key}[${k}]`);
-            const multipleItem = (
-              getFieldDecorator(targetMultipleKey, {
-                initialValue: _.get(initialValues, targetMultipleKey),
+            const dynamicItem = (
+              getFieldDecorator(this.getDecoratorKey(parentKeys, `${key}[${k}]`), {
+                initialValue: _.get(initialValues, this.getDecoratorKey(parentKeys, `${key}[${k}]`)),
                 ...fieldDecorator,
               })(
                 <TargetComponent
-                  {...finalComponentProps}
+                  {...componentProps}
+                  {...componentExtraProps}
                 />
               )
             );
-            // if (type === 'select') {
-            //   const targetSelectValue = getFieldValue(targetMultipleKey);
-            //   const hasTargetValue = providers[provider].some(({ value }) => value === targetSelectValue);
-            //   if (!hasTargetValue) {
-            //     const { multiple: selectMultiple } = componentProps;
-            //     const resetValue = selectMultiple ? [] : undefined;
-            //     setFieldsValue({ [targetMultipleKey]: resetValue });
-            //   }
-            // }
-            return multipleItem;
+            if (type === 'select') {
+              const { form: { getFieldValue, resetFields }, providers } = this.props;
+              const targetSelectValue = getFieldValue(this.getDecoratorKey(parentKeys, `${key}[${k}]`));
+              let hasTargetValue = true;
+              if (linkage) {
+                hasTargetValue = providers[provider][linkageValue].some(({ value }) => value === targetSelectValue);
+              } else {
+                hasTargetValue = providers[provider].some(({ value }) => value === targetSelectValue);
+              }
+              if (!hasTargetValue) {
+                resetFields(this.getDecoratorKey(parentKeys, `${key}[${k}]`));
+              }
+            }
+            return dynamicItem;
           },
         );
 
         return formItem;
       }
-
-      const targetKey = this.getDecoratorKey(parentKeys, key);
 
       const formItem = (
         <FormItem
@@ -394,26 +464,31 @@ export default class JsonSchemaForm extends PureComponent {
           className={`${prefixCls}-item`}
           {...finalFormItemProps}
         >
-          {getFieldDecorator(targetKey, {
-            initialValue: _.get(initialValues, targetKey),
+          {getFieldDecorator(this.getDecoratorKey(parentKeys, key), {
+            initialValue: _.get(initialValues, this.getDecoratorKey(parentKeys, key)),
             ...fieldDecorator,
           })(
             <TargetComponent
-              {...finalComponentProps}
+              {...componentProps}
+              {...componentExtraProps}
             />
           )}
         </FormItem>
       );
 
-      // if (type === 'select') {
-      //   const targetSelectValue = getFieldValue(targetKey);
-      //   const hasTargetValue = providers[provider].some(({ value }) => value === targetSelectValue);
-      //   if (!hasTargetValue) {
-      //     const { multiple: selectMultiple } = componentProps;
-      //     const resetValue = selectMultiple ? [] : undefined;
-      //     setFieldsValue({ [targetKey]: resetValue });
-      //   }
-      // }
+      if (type === 'select') {
+        const { form: { getFieldValue, resetFields }, providers } = this.props;
+        const targetSelectValue = getFieldValue(this.getDecoratorKey(parentKeys, key));
+        let hasTargetValue = true;
+        if (linkage) {
+          hasTargetValue = providers[provider][linkageValue].some(({ value }) => value === targetSelectValue);
+        } else {
+          hasTargetValue = providers[provider].some(({ value }) => value === targetSelectValue);
+        }
+        if (!hasTargetValue) {
+          resetFields(this.getDecoratorKey(parentKeys, key));
+        }
+      }
 
       return formItem;
     });
